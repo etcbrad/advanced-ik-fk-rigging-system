@@ -3,14 +3,30 @@ import './math.js';
 import './joint.js';
 import './renderer.js';
 import './input-handler.js';
+import './skeleton-data.js';
+import './advanced-ik-solver.js';
+import './skeleton-renderer.js';
 
 // Main Application Controller
 class IKFKSystem {
     constructor() {
         this.canvas = document.getElementById('rigCanvas');
+        
+        // Initialize with skeleton data
+        this.skeletonData = BITRUVIUS_DATA;
+        this.advancedIKSolver = new AdvancedIKSolver(this.skeletonData);
+        this.skeletonRenderer = new SkeletonRenderer(this.canvas, this.skeletonData);
+        
+        // Keep original joint chain for compatibility
         this.jointChain = new JointChain(new Vector2(400, 300));
         this.renderer = new Renderer(this.canvas);
         this.inputHandler = new InputHandler(this.canvas, this.jointChain, this.renderer);
+        
+        // Current rotations state
+        this.currentRotations = { ...this.skeletonData.initialRotations };
+        
+        // Interaction modes
+        this.interactionMode = "FK"; // "FK" or "IK"
         
         // Animation state
         this.isRunning = true;
@@ -25,8 +41,13 @@ class IKFKSystem {
 
     init() {
         this.setupEventListeners();
+        this.setupCanvas();
         this.animate();
-        console.log('IK/FK System initialized');
+        console.log('Advanced IK/FK System with Skeleton Integration initialized');
+    }
+
+    setupCanvas() {
+        this.skeletonRenderer.setupCanvas(this.canvas.width, this.canvas.height);
     }
 
     setupEventListeners() {
@@ -34,7 +55,104 @@ class IKFKSystem {
         window.addEventListener('resize', this.handleResize.bind(this));
         window.addEventListener('beforeunload', this.handleBeforeUnload.bind(this));
         
-        // UI event listeners will be handled by UIControls class
+        // Mode switching
+        this.setupModeControls();
+        
+        // IK chain controls
+        this.setupIKControls();
+    }
+
+    setupModeControls() {
+        // Add mode toggle buttons to UI
+        const controlsPanel = document.querySelector('.controls-panel');
+        const modeSection = document.createElement('div');
+        modeSection.className = 'control-section';
+        modeSection.innerHTML = `
+            <h3>Interaction Mode</h3>
+            <div class="button-group">
+                <button class="btn" id="fkModeBtn">FK Mode</button>
+                <button class="btn secondary" id="ikModeBtn">IK Mode</button>
+            </div>
+            <div class="toggle-switch">
+                <input type="checkbox" id="mocapMode">
+                <label for="mocapMode">Mocap Mode</label>
+            </div>
+            <div class="toggle-switch">
+                <input type="checkbox" id="silhouetteMode" checked>
+                <label for="silhouetteMode">Silhouette Mode</label>
+            </div>
+        `;
+        
+        controlsPanel.insertBefore(modeSection, controlsPanel.firstChild);
+        
+        // Bind events
+        document.getElementById('fkModeBtn').addEventListener('click', () => {
+            this.interactionMode = "FK";
+            this.updateModeButtons();
+        });
+        
+        document.getElementById('ikModeBtn').addEventListener('click', () => {
+            this.interactionMode = "IK";
+            this.updateModeButtons();
+        });
+        
+        document.getElementById('mocapMode').addEventListener('change', (e) => {
+            this.skeletonRenderer.setMocapMode(e.target.checked);
+        });
+        
+        document.getElementById('silhouetteMode').addEventListener('change', (e) => {
+            this.skeletonRenderer.setSilhouetteMode(e.target.checked);
+        });
+        
+        this.updateModeButtons();
+    }
+
+    setupIKControls() {
+        const controlsPanel = document.querySelector('.controls-panel');
+        const ikSection = document.createElement('div');
+        ikSection.className = 'control-section';
+        ikSection.innerHTML = `
+            <h3>IK Chains</h3>
+            <div id="ikChainControls"></div>
+        `;
+        
+        controlsPanel.appendChild(ikSection);
+        this.updateIKControls();
+    }
+
+    updateModeButtons() {
+        const fkBtn = document.getElementById('fkModeBtn');
+        const ikBtn = document.getElementById('ikModeBtn');
+        
+        if (this.interactionMode === "FK") {
+            fkBtn.classList.remove('secondary');
+            ikBtn.classList.add('secondary');
+        } else {
+            fkBtn.classList.add('secondary');
+            ikBtn.classList.remove('secondary');
+        }
+    }
+
+    updateIKControls() {
+        const container = document.getElementById('ikChainControls');
+        container.innerHTML = '';
+        
+        Object.keys(this.skeletonData.IK_CHAINS).forEach(chainId => {
+            const chainControl = document.createElement('div');
+            chainControl.className = 'toggle-switch';
+            chainControl.innerHTML = `
+                <input type="checkbox" id="ik_${chainId}" checked>
+                <label for="ik_${chainId}">${this.skeletonData.CHAIN_LABELS[chainId] || chainId}</label>
+            `;
+            
+            const checkbox = chainControl.querySelector(`#ik_${chainId}`);
+            checkbox.addEventListener('change', (e) => {
+                this.skeletonRenderer.toggleIKChain(chainId);
+                this.updateIKControls();
+            });
+            
+            container.appendChild(chainControl);
+        });
     }
 
     animate(currentTime = 0) {
@@ -55,19 +173,35 @@ class IKFKSystem {
     }
 
     update(deltaTime) {
-        // Update joint chain
+        // Update original joint chain
         this.jointChain.update(deltaTime);
+        
+        // Update skeleton rotations based on interaction
+        this.updateSkeletonInteraction();
         
         // Update UI
         this.uiControls.update();
     }
 
+    updateSkeletonInteraction() {
+        // This would integrate with input handler for skeleton-specific interactions
+        // For now, keep current rotations
+    }
+
     render() {
+        // Clear canvas
+        this.renderer.clear();
+        
+        // Render original joint chain
         this.renderer.render(this.jointChain, this.inputHandler);
+        
+        // Render skeleton overlay
+        this.skeletonRenderer.render(this.currentRotations, this.interactionMode);
     }
 
     handleResize() {
         this.renderer.setupCanvas();
+        this.setupCanvas();
     }
 
     handleBeforeUnload() {
@@ -78,6 +212,7 @@ class IKFKSystem {
     saveState() {
         const state = {
             jointChain: this.jointChain.serialize(),
+            skeletonRotations: this.currentRotations,
             camera: this.inputHandler.camera,
             renderer: {
                 showGrid: this.renderer.showGrid,
