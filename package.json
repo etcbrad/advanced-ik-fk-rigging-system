@@ -1,0 +1,37 @@
+{
+  "name": "advanced-ik-fk-rigging-system",
+  "version": "1.0.0",
+  "description": "Sophisticated IK/FK rigging system with 360+ degree rotation and multiple solver algorithms",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "python3 -m http.server 8000"
+  },
+  "keywords": [
+    "ik",
+    "fk", 
+    "rigging",
+    "animation",
+    "canvas",
+    "inverse-kinematics",
+    "forward-kinematics",
+    "skeletal-animation"
+  ],
+  "author": "Bradley Geiser",
+  "license": "MIT",
+  "devDependencies": {
+    "vite": "^5.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bradleygeiser/advanced-ik-fk-rigging-system.git"
+  },
+  "homepage": "https://bradleygeiser.github.io/advanced-ik-fk-rigging-system",
+  "files": [
+    "dist/**/*",
+    "*.md",
+    "LICENSE"
+  ]
+}
